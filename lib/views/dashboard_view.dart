@@ -479,9 +479,11 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                           activeColor: Colors.green,
                           onChanged: (val) {
                             ref.read(tasksNotifierProvider.notifier).toggleTaskCompletion(task.id);
-                            // If completing, dynamically award XP to make it interactive
+                            // If completing, dynamically award XP, else remove XP
                             if (val == true) {
                               ref.read(playerProfileProvider.notifier).addXP(task.xpReward);
+                            } else {
+                              ref.read(playerProfileProvider.notifier).removeXP(task.xpReward);
                             }
                           },
                         ),

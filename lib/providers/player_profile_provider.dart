@@ -18,6 +18,19 @@ class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
     );
   }
 
+  /// Removes [amount] from the total XP and automatically updates the player's rank.
+  void removeXP(int amount) {
+    if (amount <= 0) return;
+    
+    final newXp = (state.totalXp - amount).clamp(0, 999999);
+    final newRank = _evaluateRank(newXp);
+    
+    state = state.copyWith(
+      totalXp: newXp,
+      currentRank: newRank,
+    );
+  }
+
   /// Evaluates and returns the player's rank based on experience points:
   /// - Rank E: < 150 XP
   /// - Rank D: 150 - 499 XP
