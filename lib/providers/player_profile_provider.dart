@@ -1,0 +1,57 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/player_profile.dart';
+
+/// A [StateNotifier] that manages the [PlayerProfile] state.
+class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
+  PlayerProfileNotifier(super.initialProfile);
+
+  /// Adds [amount] to the total XP and automatically updates the player's rank.
+  void addXP(int amount) {
+    if (amount <= 0) return;
+    
+    final newXp = state.totalXp + amount;
+    final newRank = _evaluateRank(newXp);
+    
+    state = state.copyWith(
+      totalXp: newXp,
+      currentRank: newRank,
+    );
+  }
+
+  /// Evaluates and returns the player's rank based on experience points:
+  /// - Rank E: < 150 XP
+  /// - Rank D: 150 - 499 XP
+  /// - Rank C: 500 - 1199 XP
+  /// - Rank B: 1200 - 2499 XP
+  /// - Rank A: 2500 - 4999 XP
+  /// - Rank S: 5000 - 9999 XP
+  /// - Rank Monarch: >= 10000 XP
+  String _evaluateRank(int xp) {
+    if (xp < 150) {
+      return 'E';
+    } else if (xp < 500) {
+      return 'D';
+    } else if (xp < 1200) {
+      return 'C';
+    } else if (xp < 2500) {
+      return 'B';
+    } else if (xp < 5000) {
+      return 'A';
+    } else if (xp < 10000) {
+      return 'S';
+    } else {
+      return 'Monarch';
+    }
+  }
+}
+
+/// A provider for the [PlayerProfileNotifier] and its state.
+final playerProfileProvider =
+    StateNotifierProvider<PlayerProfileNotifier, PlayerProfile>((ref) {
+  return PlayerProfileNotifier(
+    PlayerProfile(
+      uid: 'default_uid',
+      username: 'Player 1',
+    ),
+  );
+});
