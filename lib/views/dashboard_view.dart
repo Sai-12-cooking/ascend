@@ -1,0 +1,535 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+import '../models/player_profile.dart';
+import '../models/task_model.dart';
+import '../providers/player_profile_provider.dart';
+import '../providers/task_provider.dart';
+import '../providers/daily_popup_provider.dart';
+import '../theme/app_theme.dart';
+
+class DashboardView extends ConsumerStatefulWidget {
+  const DashboardView({super.key});
+
+  @override
+  ConsumerState<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends ConsumerState<DashboardView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load today's tasks on load
+      ref.read(tasksNotifierProvider.notifier).fetchTodayTasks('default_uid');
+      
+      // Trigger landing popup if it's the first open
+      _triggerPopupIfNeeded();
+    });
+  }
+
+  void _triggerPopupIfNeeded() {
+    final shouldShow = ref.read(dailyPopupProvider);
+    if (shouldShow) {
+      _showSystemActivatedDialog();
+    }
+  }
+
+  /// Displays the gaming-inspired "SYSTEM ACTIVATED" popup with background blur.
+  void _showSystemActivatedDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'System Activated Dialog',
+      barrierColor: Colors.black.withOpacity(0.7),
+      transitionDuration: const Duration(milliseconds: 600),
+      pageBuilder: (context, anim1, anim2) {
+        return const SizedBox.shrink(); // Unused in custom transition builder
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        final scale = CurvedAnimation(parent: anim1, curve: Curves.elasticOut).value;
+        final opacity = CurvedAnimation(parent: anim1, curve: Curves.easeIn).value;
+        
+        return BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 10 * anim1.value,
+            sigmaY: 10 * anim1.value,
+          ),
+          child: Opacity(
+            opacity: opacity,
+            child: Transform.scale(
+              scale: scale,
+              child: AlertDialog(
+                backgroundColor: const Color(0xFF0F0F13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.security,
+                      size: 64,
+                      color: AppTheme.primaryColor,
+                    ),
+                    const SizedBox(height: 16),
+                    // High-impact neon title
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [AppTheme.primaryColor, AppTheme.accentColor],
+                      ).createShader(bounds),
+                      child: const Text(
+                        'SYSTEM ACTIVATED',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.0,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Welcome back, Ascender. Your daily quests have initialized. Rise to the challenge, gain experience, and build your legacy.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 16,
+                        ),
+                      ),
+                      onPressed: () {
+                        // Dismiss popup state
+                        ref.read(dailyPopupProvider.notifier).dismissPopup();
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'BEGIN ASCENT',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Displays a dialog to add a new task custom to the Dashboard.
+  void _showAddTaskDialog() {
+    final titleController = TextEditingController();
+    String selectedCategory = 'Workout';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFF27272A)),
+              ),
+              title: const Text('New Quest'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter quest title...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    dropdownColor: const Color(0xFF18181B),
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ['Workout', 'Focus Work', 'Learning']
+                        .map((cat) => DropdownMenuItem(
+                              value: cat,
+                              child: Text(cat),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          selectedCategory = val;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final title = titleController.text.trim();
+                    if (title.isNotEmpty) {
+                      final task = TaskModel(
+                        id: const Uuid().v4(),
+                        userId: 'default_uid',
+                        title: title,
+                        category: selectedCategory,
+                        xpReward: selectedCategory == 'Workout' ? 20 : 15,
+                      );
+                      ref.read(tasksNotifierProvider.notifier).addTask(task);
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Calculates the XP progress percentage for the progress bar based on the current rank.
+  double _getXpProgress(String rank, int xp) {
+    if (rank == 'E') return (xp / 150.0).clamp(0.0, 1.0);
+    if (rank == 'D') return ((xp - 150.0) / (500.0 - 150.0)).clamp(0.0, 1.0);
+    if (rank == 'C') return ((xp - 500.0) / (1200.0 - 500.0)).clamp(0.0, 1.0);
+    if (rank == 'B') return ((xp - 1200.0) / (2500.0 - 1200.0)).clamp(0.0, 1.0);
+    if (rank == 'A') return ((xp - 2500.0) / (5000.0 - 2500.0)).clamp(0.0, 1.0);
+    if (rank == 'S') return ((xp - 500.0) / (10000.0 - 5000.0)).clamp(0.0, 1.0);
+    return 1.0; // Monarch
+  }
+
+  /// Returns the next Rank target XP cap.
+  int _getNextRankCap(String rank) {
+    if (rank == 'E') return 150;
+    if (rank == 'D') return 500;
+    if (rank == 'C') return 1200;
+    if (rank == 'B') return 2500;
+    if (rank == 'A') return 5000;
+    if (rank == 'S') return 10000;
+    return 10000;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final PlayerProfile profile = ref.watch(playerProfileProvider);
+    final tasks = ref.watch(tasksNotifierProvider);
+
+    final progress = _getXpProgress(profile.currentRank, profile.totalXp);
+    final nextCap = _getNextRankCap(profile.currentRank);
+
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // HEADER Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'ASCEND',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.info_outline),
+                    onPressed: _showSystemActivatedDialog,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // PLAYER CARD
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.username,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.local_fire_department,
+                                    color: Colors.orange,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${profile.streakCount} Day Streak',
+                                    style: const TextStyle(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          // Premium badge for Rank
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: profile.currentRank == 'Monarch'
+                                  ? AppTheme.goldColor.withOpacity(0.15)
+                                  : AppTheme.primaryColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: profile.currentRank == 'Monarch'
+                                    ? AppTheme.goldColor
+                                    : AppTheme.primaryColor,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              'RANK ${profile.currentRank}',
+                              style: TextStyle(
+                                color: profile.currentRank == 'Monarch'
+                                    ? AppTheme.goldColor
+                                    : AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // XP Progress Bar Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'XP: ${profile.totalXp} / $nextCap',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: const TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Styled Progress Bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 12,
+                          backgroundColor: const Color(0xFF27272A),
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // STATS GRID HEADER
+              Text(
+                'CORE ATTRIBUTES',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+              ),
+              const SizedBox(height: 12),
+
+              // STATS GRID
+              GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: 1.6,
+                children: [
+                  _buildStatCard('Strength', profile.coreStats['Strength'] ?? 10, Icons.fitness_center),
+                  _buildStatCard('Intelligence', profile.coreStats['Intelligence'] ?? 10, Icons.psychology),
+                  _buildStatCard('Discipline', profile.coreStats['Discipline'] ?? 10, Icons.shield),
+                  _buildStatCard('Wealth', profile.coreStats['Wealth'] ?? 10, Icons.monetization_on),
+                  _buildStatCard(
+                    'Charisma',
+                    profile.coreStats['Charisma'] ?? 10,
+                    Icons.auto_awesome,
+                    isGold: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // QUESTS HEADER
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'DAILY QUESTS',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, color: AppTheme.primaryColor),
+                    onPressed: _showAddTaskDialog,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // QUESTS LIST
+              if (tasks.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Text(
+                      'No Active Quests for today.',
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: tasks.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: task.isCompleted
+                              ? Colors.green.withOpacity(0.1)
+                              : AppTheme.primaryColor.withOpacity(0.1),
+                          child: Icon(
+                            task.category == 'Workout'
+                                ? Icons.fitness_center
+                                : task.category == 'Focus Work'
+                                    ? Icons.laptop
+                                    : Icons.menu_book,
+                            color: task.isCompleted ? Colors.green : AppTheme.primaryColor,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          task.title,
+                          style: TextStyle(
+                            decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                            color: task.isCompleted ? Colors.white38 : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${task.category} • +${task.xpReward} XP',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: Checkbox(
+                          value: task.isCompleted,
+                          activeColor: Colors.green,
+                          onChanged: (val) {
+                            ref.read(tasksNotifierProvider.notifier).toggleTaskCompletion(task.id);
+                            // If completing, dynamically award XP to make it interactive
+                            if (val == true) {
+                              ref.read(playerProfileProvider.notifier).addXP(task.xpReward);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds a card representing a single player core attribute.
+  Widget _buildStatCard(String title, int value, IconData icon, {bool isGold = false}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: isGold ? AppTheme.goldColor : AppTheme.primaryColor,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 13, color: Colors.white54, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Lvl $value',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

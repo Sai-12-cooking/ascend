@@ -1,30 +1,56 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ascend_app/main.dart';
+import 'package:ascend_app/providers/task_provider.dart';
+import 'package:ascend_app/providers/auth_provider.dart';
+import 'package:ascend_app/repositories/task_repository.dart';
+import 'package:ascend_app/repositories/auth_repository.dart';
+import 'package:ascend_app/models/task_model.dart';
+
+class FakeTaskRepository extends TaskRepository {
+  FakeTaskRepository() : super(firestore: null);
+
+  @override
+  Future<List<TaskModel>> fetchTasksForDate(String userId, DateTime date) async {
+    return [
+      TaskModel(
+        id: 'mock_task_1',
+        userId: userId,
+        title: 'Mock Quest 1',
+        category: 'Workout',
+        xpReward: 20,
+      ),
+    ];
+  }
+
+  @override
+  Future<void> createTask(TaskModel task) async {}
+
+  @override
+  Future<void> updateTask(TaskModel task) async {}
+}
+
+class FakeAuthRepository extends AuthRepository {
+  FakeAuthRepository() : super(firebaseAuth: null, firestore: null);
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('DashboardView loads and renders ASCEND title', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskRepositoryProvider.overrideWithValue(FakeTaskRepository()),
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        ],
+        child: const MyApp(),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the title ASCEND is present on the Dashboard
+    expect(find.text('ASCEND'), findsOneWidget);
+    
+    // Verify that the attributes section is present
+    expect(find.text('CORE ATTRIBUTES'), findsOneWidget);
   });
 }

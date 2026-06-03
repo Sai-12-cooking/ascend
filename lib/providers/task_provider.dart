@@ -17,9 +17,48 @@ class TasksNotifier extends StateNotifier<List<TaskModel>> {
   Future<void> fetchTodayTasks(String userId) async {
     try {
       final tasks = await _taskRepository.fetchTasksForDate(userId, DateTime.now());
-      state = tasks;
+      if (tasks.isEmpty) {
+        // Fallback: Populate some default daily quests for visual demo if empty
+        state = [
+          TaskModel(
+            id: 'quest_1',
+            userId: userId,
+            title: 'Morning Cardio Run',
+            category: 'Workout',
+            xpReward: 20,
+          ),
+          TaskModel(
+            id: 'quest_2',
+            userId: userId,
+            title: 'Solve LeetCode Medium',
+            category: 'Focus Work',
+            xpReward: 15,
+          ),
+          TaskModel(
+            id: 'quest_3',
+            userId: userId,
+            title: 'Read 15 Pages of Book',
+            category: 'Learning',
+            isMandatory: false,
+            xpReward: 10,
+          ),
+        ];
+      } else {
+        state = tasks;
+      }
     } catch (e) {
       state = [];
+    }
+  }
+
+  /// Adds a new task to the local state and remote Firestore.
+  Future<void> addTask(TaskModel task) async {
+    state = [...state, task];
+    try {
+      await _taskRepository.createTask(task);
+    } catch (e) {
+      // Revert if remote fails
+      state = state.where((t) => t.id != task.id).toList();
     }
   }
 

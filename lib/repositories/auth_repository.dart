@@ -3,20 +3,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/player_profile.dart';
 
 class AuthRepository {
-  final FirebaseAuth _firebaseAuth;
-  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _firebaseAuth;
+  final FirebaseFirestore? _firestore;
 
   AuthRepository({
     FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  })  : _firebaseAuth = firebaseAuth,
+        _firestore = firestore;
+
+  FirebaseAuth get _auth => _firebaseAuth ?? FirebaseAuth.instance;
+  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
   /// Exposes a stream of authentication state changes.
-  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Gets the currently authenticated user.
-  User? get currentUser => _firebaseAuth.currentUser;
+  User? get currentUser => _auth.currentUser;
 
   /// Registers a new user with email, password, and username.
   /// 
@@ -27,7 +30,7 @@ class AuthRepository {
     required String password,
     required String username,
   }) async {
-    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+    final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
@@ -45,7 +48,7 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    return await _firebaseAuth.signInWithEmailAndPassword(
+    return await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
@@ -53,7 +56,7 @@ class AuthRepository {
 
   /// Signs out the current user.
   Future<void> signOut() async {
-    await _firebaseAuth.signOut();
+    await _auth.signOut();
   }
 
   /// Creates a matching PlayerProfile document inside the Firestore 'players' collection.
@@ -63,7 +66,7 @@ class AuthRepository {
       username: username,
     );
     
-    await _firestore
+    await _db
         .collection('players')
         .doc(uid)
         .set(profile.toMap());
