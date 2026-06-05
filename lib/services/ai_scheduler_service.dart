@@ -74,7 +74,7 @@ Each task object must exactly match:
       final parsedMap = jsonDecode(content);
       final jsonList = parsedMap['quests'] as List<dynamic>? ?? [];
 
-      final uuid = const Uuid();
+      const uuid = Uuid();
       final List<TaskModel> generatedTasks = [];
 
       for (var item in jsonList) {
@@ -94,7 +94,25 @@ Each task object must exactly match:
 
       return generatedTasks;
     } catch (e) {
-      throw Exception('Failed to generate daily quests: $e');
+      if (kDebugMode) {
+        debugPrint('Failed to generate daily quests: $e');
+      }
+      return [];
     }
+  }
+
+  TaskModel generateRecoveryQuest({required String userId}) {
+    final now = DateTime.now();
+    return TaskModel(
+      id: const Uuid().v4(),
+      userId: userId,
+      title: 'System Recovery: Re-ignition Quest',
+      description: 'The System has detected a prolonged state of inactivity. Complete this emergency trial to stabilize your player status.',
+      category: 'System',
+      isMandatory: true,
+      isCompleted: false,
+      xpReward: 5,
+      createdAt: DateTime(now.year, now.month, now.day),
+    );
   }
 }

@@ -1,6 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ascend_app/models/player_profile.dart';
 import 'package:ascend_app/providers/player_profile_provider.dart';
+import 'package:ascend_app/providers/rank_overlay_provider.dart';
+
+class MockRef extends Mock implements Ref {}
+class MockRankOverlayNotifier extends Mock implements RankOverlayNotifier {}
 
 void main() {
   group('PlayerProfile Model Tests', () {
@@ -69,10 +75,17 @@ void main() {
   group('PlayerProfileNotifier Tests', () {
     late PlayerProfile initialProfile;
     late PlayerProfileNotifier notifier;
+    late MockRef mockRef;
+    late MockRankOverlayNotifier mockRankOverlayNotifier;
 
     setUp(() {
       initialProfile = PlayerProfile(uid: 'user_123', username: 'Ascender');
-      notifier = PlayerProfileNotifier(initialProfile);
+      mockRef = MockRef();
+      mockRankOverlayNotifier = MockRankOverlayNotifier();
+      
+      when(() => mockRef.read(rankOverlayProvider.notifier)).thenReturn(mockRankOverlayNotifier);
+      
+      notifier = PlayerProfileNotifier(initialProfile, mockRef);
     });
 
     test('initial state matches the initial profile', () {

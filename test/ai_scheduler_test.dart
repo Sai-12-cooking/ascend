@@ -3,7 +3,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:dio/dio.dart';
 import 'package:ascend_app/services/ai_scheduler_service.dart';
 import 'package:ascend_app/models/player_profile.dart';
-import 'package:ascend_app/models/task_model.dart';
 
 class MockDio extends Mock implements Dio {}
 class FakeOptions extends Fake implements Options {}

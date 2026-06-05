@@ -4,6 +4,7 @@ class TaskModel {
   final String id;
   final String userId;
   final String title;
+  final String? description;
   final String category;
   final bool isMandatory;
   final bool isCompleted;
@@ -14,6 +15,7 @@ class TaskModel {
     required this.id,
     required this.userId,
     required this.title,
+    this.description,
     required this.category,
     this.isMandatory = true,
     this.isCompleted = false,
@@ -30,6 +32,7 @@ class TaskModel {
     String? id,
     String? userId,
     String? title,
+    String? description,
     String? category,
     bool? isMandatory,
     bool? isCompleted,
@@ -40,6 +43,7 @@ class TaskModel {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       title: title ?? this.title,
+      description: description ?? this.description,
       category: category ?? this.category,
       isMandatory: isMandatory ?? this.isMandatory,
       isCompleted: isCompleted ?? this.isCompleted,
@@ -54,6 +58,7 @@ class TaskModel {
       'id': id,
       'userId': userId,
       'title': title,
+      'description': description,
       'category': category,
       'isMandatory': isMandatory,
       'isCompleted': isCompleted,
@@ -81,6 +86,7 @@ class TaskModel {
       id: map['id'] as String,
       userId: map['userId'] as String,
       title: map['title'] as String,
+      description: map['description'] as String?,
       category: map['category'] as String,
       isMandatory: map['isMandatory'] as bool? ?? true,
       isCompleted: map['isCompleted'] as bool? ?? false,
@@ -91,6 +97,6 @@ class TaskModel {
 
   @override
   String toString() {
-    return 'TaskModel(id: $id, userId: $userId, title: $title, category: $category, isMandatory: $isMandatory, isCompleted: $isCompleted, xpReward: $xpReward, createdAt: $createdAt)';
+    return 'TaskModel(id: $id, userId: $userId, title: $title, description: $description, category: $category, isMandatory: $isMandatory, isCompleted: $isCompleted, xpReward: $xpReward, createdAt: $createdAt)';
   }
 }

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class PlayerProfile {
   final String uid;
   final String username;
@@ -6,6 +8,7 @@ class PlayerProfile {
   final int streakCount;
   final Map<String, int> coreStats;
   final bool isPremium;
+  final DateTime? updatedAt;
 
   PlayerProfile({
     required this.uid,
@@ -14,6 +17,7 @@ class PlayerProfile {
     this.totalXp = 0,
     this.streakCount = 0,
     this.isPremium = false,
+    this.updatedAt,
     Map<String, int>? coreStats,
   }) : coreStats = coreStats ??
             {
@@ -34,6 +38,7 @@ class PlayerProfile {
     int? streakCount,
     Map<String, int>? coreStats,
     bool? isPremium,
+    DateTime? updatedAt,
   }) {
     return PlayerProfile(
       uid: uid ?? this.uid,
@@ -43,6 +48,7 @@ class PlayerProfile {
       streakCount: streakCount ?? this.streakCount,
       coreStats: coreStats ?? Map<String, int>.from(this.coreStats),
       isPremium: isPremium ?? this.isPremium,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -56,6 +62,7 @@ class PlayerProfile {
       'streak_count': streakCount,
       'core_stats': Map<String, dynamic>.from(coreStats),
       'is_premium': isPremium,
+      'updated_at': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
 
@@ -68,6 +75,16 @@ class PlayerProfile {
       });
     }
 
+    DateTime? parsedUpdatedAt;
+    final rawUpdatedAt = map['updated_at'];
+    if (rawUpdatedAt is Timestamp) {
+      parsedUpdatedAt = rawUpdatedAt.toDate();
+    } else if (rawUpdatedAt is String) {
+      parsedUpdatedAt = DateTime.tryParse(rawUpdatedAt);
+    } else if (rawUpdatedAt is DateTime) {
+      parsedUpdatedAt = rawUpdatedAt;
+    }
+
     return PlayerProfile(
       uid: map['uid'] as String,
       username: map['username'] as String,
@@ -76,11 +93,12 @@ class PlayerProfile {
       streakCount: (map['streak_count'] as num? ?? 0).toInt(),
       coreStats: statsMap.isNotEmpty ? statsMap : null,
       isPremium: map['is_premium'] as bool? ?? false,
+      updatedAt: parsedUpdatedAt ?? DateTime.now(),
     );
   }
 
   @override
   String toString() {
-    return 'PlayerProfile(uid: $uid, username: $username, currentRank: $currentRank, totalXp: $totalXp, streakCount: $streakCount, coreStats: $coreStats)';
+    return 'PlayerProfile(uid: $uid, username: $username, currentRank: $currentRank, totalXp: $totalXp, streakCount: $streakCount, coreStats: $coreStats, updatedAt: $updatedAt)';
   }
 }

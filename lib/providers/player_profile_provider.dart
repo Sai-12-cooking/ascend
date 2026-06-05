@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/player_profile.dart';
+import 'rank_overlay_provider.dart';
 
 /// A [StateNotifier] that manages the [PlayerProfile] state.
 class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
-  PlayerProfileNotifier(super.initialProfile);
+  final Ref ref;
+
+  PlayerProfileNotifier(super.initialProfile, this.ref);
 
   /// Adds [amount] to the total XP and automatically updates the player's rank.
   void addXP(int amount) {
@@ -11,6 +14,10 @@ class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
     
     final newXp = state.totalXp + amount;
     final newRank = _evaluateRank(newXp);
+    
+    if (_rankLevel(newRank) > _rankLevel(state.currentRank)) {
+      ref.read(rankOverlayProvider.notifier).showOverlay(newRank);
+    }
     
     state = state.copyWith(
       totalXp: newXp,
@@ -61,6 +68,19 @@ class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
       return 'Monarch';
     }
   }
+
+  int _rankLevel(String rank) {
+    switch (rank) {
+      case 'E': return 0;
+      case 'D': return 1;
+      case 'C': return 2;
+      case 'B': return 3;
+      case 'A': return 4;
+      case 'S': return 5;
+      case 'Monarch': return 6;
+      default: return 0;
+    }
+  }
 }
 
 /// A provider for the [PlayerProfileNotifier] and its state.
@@ -71,5 +91,6 @@ final playerProfileProvider =
       uid: 'default_uid',
       username: 'Player 1',
     ),
+    ref,
   );
 });

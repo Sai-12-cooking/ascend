@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/premium_gate.dart';
 import '../theme/app_theme.dart';
 import '../utils/export_utility.dart';
+import '../widgets/cinematic_rank_up_overlay.dart';
 import 'monk_mode_view.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
@@ -259,8 +260,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final nextCap = _getNextRankCap(profile.currentRank);
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,6 +552,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             ],
           ),
         ),
+      ),
+      const CinematicRankUpOverlay(),
+      ],
       ),
     );
   }
