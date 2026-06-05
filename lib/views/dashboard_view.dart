@@ -7,7 +7,11 @@ import '../models/task_model.dart';
 import '../providers/player_profile_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/daily_popup_provider.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/premium_gate.dart';
 import '../theme/app_theme.dart';
+import '../utils/export_utility.dart';
+import 'monk_mode_view.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
@@ -21,8 +25,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Load today's tasks on load
-      ref.read(tasksNotifierProvider.notifier).fetchTodayTasks('default_uid');
+      // Load today's tasks on load for the current user
+      final uid = ref.read(authRepositoryProvider).currentUser?.uid ?? 'unknown_uid';
+      ref.read(tasksNotifierProvider.notifier).fetchTodayTasks(uid);
       
       // Trigger landing popup if it's the first open
       _triggerPopupIfNeeded();
@@ -113,6 +118,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         // Dismiss popup state
                         ref.read(dailyPopupProvider.notifier).dismissPopup();
                         Navigator.of(context).pop();
+
+                        // Check if we need to dynamically generate quests for the new day
+                        final tasks = ref.read(tasksNotifierProvider);
+                        if (tasks.isEmpty) {
+                          final uid = ref.read(authRepositoryProvider).currentUser?.uid ?? 'unknown_uid';
+                          final profile = ref.read(playerProfileProvider);
+                          ref.read(tasksNotifierProvider.notifier).generateAndSaveDailyQuests(uid, profile);
+                        }
                       },
                       child: const Text(
                         'BEGIN ASCENT',
@@ -193,9 +206,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   onPressed: () {
                     final title = titleController.text.trim();
                     if (title.isNotEmpty) {
+                      final uid = ref.read(authRepositoryProvider).currentUser?.uid ?? 'unknown_uid';
                       final task = TaskModel(
                         id: const Uuid().v4(),
-                        userId: 'default_uid',
+                        userId: uid,
                         title: title,
                         category: selectedCategory,
                         xpReward: selectedCategory == 'Workout' ? 20 : 15,
@@ -264,9 +278,21 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       color: AppTheme.primaryColor,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.info_outline),
-                    onPressed: _showSystemActivatedDialog,
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.self_improvement, color: AppTheme.goldColor),
+                        onPressed: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => const PremiumGate(child: MonkModeView()),
+                          ));
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline),
+                        onPressed: _showSystemActivatedDialog,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -369,6 +395,23 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                           color: AppTheme.primaryColor,
                         ),
                       ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final completedQuests = tasks.where((t) => t.isCompleted).length;
+                            ExportUtility.exportProgressCard(context, profile, completedQuests);
+                          },
+                          icon: const Icon(Icons.ios_share, size: 18),
+                          label: const Text('SHARE ASCENSION'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryColor,
+                            side: const BorderSide(color: AppTheme.primaryColor),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -429,12 +472,24 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
               // QUESTS LIST
               if (tasks.isEmpty)
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.0),
-                    child: Text(
-                      'No Active Quests for today.',
-                      style: TextStyle(color: Colors.white38),
+                    padding: const EdgeInsets.symmetric(vertical: 32.0),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.assignment_add, size: 48, color: Colors.white24),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No active quests detected.',
+                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: _showAddTaskDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Initialize First Quest'),
+                        )
+                      ],
                     ),
                   ),
                 )

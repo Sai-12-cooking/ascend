@@ -31,6 +31,11 @@ class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
     );
   }
 
+  /// Upgrades the user to premium.
+  void unlockPremium() {
+    state = state.copyWith(isPremium: true);
+  }
+
   /// Evaluates and returns the player's rank based on experience points:
   /// - Rank E: < 150 XP
   /// - Rank D: 150 - 499 XP

@@ -5,6 +5,7 @@ class PlayerProfile {
   final int totalXp;
   final int streakCount;
   final Map<String, int> coreStats;
+  final bool isPremium;
 
   PlayerProfile({
     required this.uid,
@@ -12,6 +13,7 @@ class PlayerProfile {
     this.currentRank = 'E',
     this.totalXp = 0,
     this.streakCount = 0,
+    this.isPremium = false,
     Map<String, int>? coreStats,
   }) : coreStats = coreStats ??
             {
@@ -31,6 +33,7 @@ class PlayerProfile {
     int? totalXp,
     int? streakCount,
     Map<String, int>? coreStats,
+    bool? isPremium,
   }) {
     return PlayerProfile(
       uid: uid ?? this.uid,
@@ -39,6 +42,7 @@ class PlayerProfile {
       totalXp: totalXp ?? this.totalXp,
       streakCount: streakCount ?? this.streakCount,
       coreStats: coreStats ?? Map<String, int>.from(this.coreStats),
+      isPremium: isPremium ?? this.isPremium,
     );
   }
 
@@ -51,6 +55,7 @@ class PlayerProfile {
       'total_xp': totalXp,
       'streak_count': streakCount,
       'core_stats': Map<String, dynamic>.from(coreStats),
+      'is_premium': isPremium,
     };
   }
 
@@ -70,6 +75,7 @@ class PlayerProfile {
       totalXp: (map['total_xp'] as num? ?? 0).toInt(),
       streakCount: (map['streak_count'] as num? ?? 0).toInt(),
       coreStats: statsMap.isNotEmpty ? statsMap : null,
+      isPremium: map['is_premium'] as bool? ?? false,
     );
   }
 

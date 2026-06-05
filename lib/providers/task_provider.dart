@@ -1,51 +1,53 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/task_model.dart';
+import '../models/player_profile.dart';
 import '../repositories/task_repository.dart';
+import '../services/ai_scheduler_service.dart';
 
 /// Provider for the [TaskRepository].
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
   return TaskRepository();
 });
 
+/// Provider for the [AiSchedulerService].
+final aiSchedulerServiceProvider = Provider<AiSchedulerService>((ref) {
+  return AiSchedulerService();
+});
+
 /// Notifier that manages the daily task list state.
 class TasksNotifier extends StateNotifier<List<TaskModel>> {
   final TaskRepository _taskRepository;
+  final AiSchedulerService _aiSchedulerService;
 
-  TasksNotifier(this._taskRepository) : super([]);
+  TasksNotifier(this._taskRepository, this._aiSchedulerService) : super([]);
 
   /// Fetches today's tasks for [userId] from Firestore.
   Future<void> fetchTodayTasks(String userId) async {
     try {
       final tasks = await _taskRepository.fetchTasksForDate(userId, DateTime.now());
-      if (tasks.isEmpty) {
-        // Fallback: Populate some default daily quests for visual demo if empty
-        state = [
-          TaskModel(
-            id: 'quest_1',
-            userId: userId,
-            title: 'Morning Cardio Run',
-            category: 'Workout',
-            xpReward: 20,
-          ),
-          TaskModel(
-            id: 'quest_2',
-            userId: userId,
-            title: 'Solve LeetCode Medium',
-            category: 'Focus Work',
-            xpReward: 15,
-          ),
-          TaskModel(
-            id: 'quest_3',
-            userId: userId,
-            title: 'Read 15 Pages of Book',
-            category: 'Learning',
-            isMandatory: false,
-            xpReward: 10,
-          ),
-        ];
-      } else {
-        state = tasks;
+      state = tasks;
+    } catch (e) {
+      state = [];
+    }
+  }
+
+  /// Generates new daily quests via AI and saves them.
+  Future<void> generateAndSaveDailyQuests(String userId, PlayerProfile profile) async {
+    try {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final yesterdayTasks = await _taskRepository.fetchTasksForDate(userId, yesterday);
+      
+      final newTasks = await _aiSchedulerService.generateDailyQuests(
+        userId: userId,
+        profile: profile,
+        yesterdayTasks: yesterdayTasks,
+      );
+      
+      for (var task in newTasks) {
+        await _taskRepository.createTask(task);
       }
+      
+      state = newTasks;
     } catch (e) {
       state = [];
     }
@@ -93,5 +95,6 @@ class TasksNotifier extends StateNotifier<List<TaskModel>> {
 final tasksNotifierProvider =
     StateNotifierProvider<TasksNotifier, List<TaskModel>>((ref) {
   final taskRepository = ref.watch(taskRepositoryProvider);
-  return TasksNotifier(taskRepository);
+  final aiSchedulerService = ref.watch(aiSchedulerServiceProvider);
+  return TasksNotifier(taskRepository, aiSchedulerService);
 });

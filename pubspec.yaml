@@ -39,10 +39,16 @@ dependencies:
   cloud_firestore: ^6.3.0
   firebase_auth: ^6.4.0
   uuid: ^4.5.3
+  dio: ^5.4.0
+  flutter_stripe: ^10.1.1
+  screenshot: ^3.0.0
+  share_plus: ^10.1.0
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  mocktail: ^1.0.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

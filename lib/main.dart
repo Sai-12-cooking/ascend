@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'views/dashboard_view.dart';
+import 'services/payment_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PaymentService.initialize();
   runApp(
     const ProviderScope(
       child: MyApp(),
