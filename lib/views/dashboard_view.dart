@@ -18,6 +18,7 @@ import '../theme/app_theme.dart';
 import '../utils/export_utility.dart';
 import '../widgets/cinematic_rank_up_overlay.dart';
 import 'monk_mode_view.dart';
+import 'custom_web_view.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
@@ -369,6 +370,17 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       IconButton(
                         icon: const Icon(Icons.info_outline),
                         onPressed: _showSystemActivatedDialog,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.public, color: AppTheme.primaryColor),
+                        onPressed: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => const CustomWebView(
+                              url: 'https://flutter.dev',
+                              title: 'WEB VIEW',
+                            ),
+                          ));
+                        },
                       ),
                     ],
                   ),

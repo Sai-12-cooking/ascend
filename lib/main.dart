@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'views/dashboard_view.dart';
 import 'views/onboarding_survey_view.dart';
@@ -17,14 +18,8 @@ void main() async {
   }
 
   try {
-    // We provide dummy options to satisfy the web plugin requirements
     await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'dummy_api_key',
-        appId: 'dummy_app_id',
-        messagingSenderId: 'dummy_sender_id',
-        projectId: 'dummy_project_id',
-      ),
+      options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
     debugPrint('Firebase init error: $e');
