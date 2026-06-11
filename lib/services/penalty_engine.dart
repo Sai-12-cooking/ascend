@@ -53,4 +53,72 @@ class PenaltyEngine {
 
     return updatedProfile;
   }
+
+  Future<PlayerProfile> evaluatePassedDeadlines(String userId, PlayerProfile profile) async {
+    final now = DateTime.now().toUtc();
+    final tasksSnapshot = await _firestore
+        .collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('isCompleted', isEqualTo: false)
+        .get();
+
+    final expiredTasks = <QueryDocumentSnapshot>[];
+
+    for (var doc in tasksSnapshot.docs) {
+      final data = doc.data();
+      final deadlineField = data['deadline'];
+      if (deadlineField != null) {
+        DateTime deadline;
+        if (deadlineField is Timestamp) {
+          deadline = deadlineField.toDate().toUtc();
+        } else if (deadlineField is String) {
+          final parsed = DateTime.tryParse(deadlineField);
+          if (parsed != null) {
+            deadline = parsed.toUtc();
+          } else {
+            continue;
+          }
+        } else {
+          continue;
+        }
+
+        if (now.isAfter(deadline)) {
+          expiredTasks.add(doc);
+        }
+      }
+    }
+
+    if (expiredTasks.isEmpty) {
+      return profile;
+    }
+
+    final batch = _firestore.batch();
+
+    // Remove expired tasks
+    for (var doc in expiredTasks) {
+      batch.delete(doc.reference);
+    }
+
+    // Apply structured penalties: Break streak, deduct 15 XP
+    const xpPenalty = 15;
+    final newTotalXp = max(0, profile.totalXp - xpPenalty);
+    
+    final updatedProfile = profile.copyWith(
+      streakCount: 0,
+      totalXp: newTotalXp,
+      updatedAt: now,
+    );
+
+    final profileRef = _firestore.collection('users').doc(userId);
+    batch.update(profileRef, updatedProfile.toMap());
+
+    // Inject automated Penalty Quest: Double Down Challenge
+    final penaltyQuest = _aiSchedulerService.generatePenaltyQuest(userId: userId);
+    final taskRef = _firestore.collection('tasks').doc(penaltyQuest.id);
+    batch.set(taskRef, penaltyQuest.toMap());
+
+    await batch.commit();
+
+    return updatedProfile;
+  }
 }

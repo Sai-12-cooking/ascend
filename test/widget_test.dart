@@ -6,6 +6,11 @@ import 'package:ascend_app/providers/auth_provider.dart';
 import 'package:ascend_app/repositories/task_repository.dart';
 import 'package:ascend_app/repositories/auth_repository.dart';
 import 'package:ascend_app/models/task_model.dart';
+import 'package:ascend_app/models/player_profile.dart';
+import 'package:ascend_app/services/penalty_engine.dart';
+import 'package:ascend_app/providers/penalty_engine_provider.dart';
+import 'package:ascend_app/providers/player_profile_provider.dart';
+import 'package:ascend_app/providers/daily_popup_provider.dart';
 
 class FakeTaskRepository extends TaskRepository {
   FakeTaskRepository() : super(firestore: null);
@@ -34,6 +39,18 @@ class FakeAuthRepository extends AuthRepository {
   FakeAuthRepository() : super(firebaseAuth: null, firestore: null);
 }
 
+class FakePenaltyEngine implements PenaltyEngine {
+  @override
+  Future<PlayerProfile> evaluatePassedDeadlines(String userId, PlayerProfile profile) async {
+    return profile;
+  }
+
+  @override
+  Future<PlayerProfile> verifyLastLoginCheckIn(PlayerProfile profile, {DateTime? simulatedNow}) async {
+    return profile;
+  }
+}
+
 void main() {
   testWidgets('DashboardView loads and renders ASCEND title', (WidgetTester tester) async {
     // Build our app and trigger a frame.
@@ -42,6 +59,16 @@ void main() {
         overrides: [
           taskRepositoryProvider.overrideWithValue(FakeTaskRepository()),
           authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          penaltyEngineProvider.overrideWithValue(FakePenaltyEngine()),
+          dailyPopupProvider.overrideWith((ref) => DailyPopupNotifier()..dismissPopup()),
+          playerProfileProvider.overrideWith((ref) => PlayerProfileNotifier(
+                PlayerProfile(
+                  uid: 'test',
+                  username: 'test',
+                  primaryFitnessGoal: 'Muscle Gain',
+                ),
+                ref,
+              )),
         ],
         child: const MyApp(),
       ),

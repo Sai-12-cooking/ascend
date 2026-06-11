@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 import '../models/player_profile.dart';
 import '../models/task_model.dart';
@@ -8,6 +12,7 @@ import '../providers/player_profile_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/daily_popup_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/penalty_engine_provider.dart';
 import '../widgets/premium_gate.dart';
 import '../theme/app_theme.dart';
 import '../utils/export_utility.dart';
@@ -25,14 +30,26 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Load today's tasks on load for the current user
       final uid = ref.read(authRepositoryProvider).currentUser?.uid ?? 'unknown_uid';
-      ref.read(tasksNotifierProvider.notifier).fetchTodayTasks(uid);
+      await _evaluateDeadlinesAndRefresh(uid);
       
       // Trigger landing popup if it's the first open
       _triggerPopupIfNeeded();
     });
+  }
+
+  Future<void> _evaluateDeadlinesAndRefresh(String uid) async {
+    final profile = ref.read(playerProfileProvider);
+    final penaltyEngine = ref.read(penaltyEngineProvider);
+    
+    final newProfile = await penaltyEngine.evaluatePassedDeadlines(uid, profile);
+    if (newProfile != profile) {
+      ref.read(playerProfileProvider.notifier).setProfile(newProfile);
+    }
+    
+    await ref.read(tasksNotifierProvider.notifier).fetchTodayTasks(uid);
   }
 
   void _triggerPopupIfNeeded() {
@@ -42,8 +59,29 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     }
   }
 
+  Future<Map<String, String>> _fetchZenQuote() async {
+    try {
+      final dio = Dio();
+      final response = await dio.get('https://zenquotes.io/api/random');
+      if (response.data is List && response.data.isNotEmpty) {
+        final quoteData = response.data[0];
+        return {
+          'q': quoteData['q']?.toString() ?? 'Rise to the challenge.',
+          'a': quoteData['a']?.toString() ?? 'System',
+        };
+      }
+    } catch (e) {
+      // Fallback
+    }
+    return {
+      'q': 'Rise to the challenge, gain experience, and build your legacy.',
+      'a': 'Ascend AI',
+    };
+  }
+
   /// Displays the gaming-inspired "SYSTEM ACTIVATED" popup with background blur.
   void _showSystemActivatedDialog() {
+    final quoteFuture = _fetchZenQuote();
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
@@ -98,14 +136,44 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Welcome back, Ascender. Your daily quests have initialized. Rise to the challenge, gain experience, and build your legacy.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
+                    FutureBuilder<Map<String, String>>(
+                      future: quoteFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                          );
+                        }
+                        
+                        final quote = snapshot.data?['q'] ?? '';
+                        final author = snapshot.data?['a'] ?? '';
+                        
+                        return Column(
+                          children: [
+                            Text(
+                              '"$quote"',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontStyle: FontStyle.italic,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '- $author',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.goldColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -263,9 +331,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       body: Stack(
         children: [
           SafeArea(
-            child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                HapticFeedback.lightImpact();
+                final uid = ref.read(authRepositoryProvider).currentUser?.uid ?? 'unknown_uid';
+                await _evaluateDeadlinesAndRefresh(uid);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // HEADER Row
@@ -311,28 +386,55 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
                             children: [
-                              Text(
-                                profile.username,
-                                style: Theme.of(context).textTheme.titleLarge,
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: Colors.white10,
+                                  child: Platform.environment.containsKey('FLUTTER_TEST')
+                                      ? const Icon(Icons.person, size: 32, color: Colors.white54)
+                                      : SvgPicture.network(
+                                          'https://api.dicebear.com/7.x/pixel-art/svg?seed=${Uri.encodeComponent(profile.username)}',
+                                          placeholderBuilder: (BuildContext context) => const Padding(
+                                            padding: EdgeInsets.all(12.0),
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor),
+                                          ),
+                                          errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) => const Icon(
+                                            Icons.person,
+                                            size: 32,
+                                            color: Colors.white54,
+                                          ),
+                                        ),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(
-                                    Icons.local_fire_department,
-                                    color: Colors.orange,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 4),
                                   Text(
-                                    '${profile.streakCount} Day Streak',
-                                    style: const TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    profile.username,
+                                    style: Theme.of(context).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.local_fire_department,
+                                        color: Colors.orange,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${profile.streakCount} Day Streak',
+                                        style: const TextStyle(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -549,7 +651,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                     );
                   },
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -9,6 +9,9 @@ class PlayerProfile {
   final Map<String, int> coreStats;
   final bool isPremium;
   final DateTime? updatedAt;
+  final String globalFitnessTier;
+  final Map<String, int> physicalBaselines;
+  final String primaryFitnessGoal;
 
   PlayerProfile({
     required this.uid,
@@ -18,6 +21,9 @@ class PlayerProfile {
     this.streakCount = 0,
     this.isPremium = false,
     this.updatedAt,
+    this.globalFitnessTier = 'Unset',
+    this.primaryFitnessGoal = 'Unset',
+    Map<String, int>? physicalBaselines,
     Map<String, int>? coreStats,
   }) : coreStats = coreStats ??
             {
@@ -26,6 +32,13 @@ class PlayerProfile {
               'Discipline': 10,
               'Wealth': 10,
               'Charisma': 10,
+            },
+       physicalBaselines = physicalBaselines ??
+            {
+              'pushups': 0,
+              'pullups': 0,
+              'mileTimeSeconds': 0,
+              'plankSeconds': 0,
             };
 
   /// Creates a copy of this [PlayerProfile] but with the given fields replaced
@@ -39,6 +52,9 @@ class PlayerProfile {
     Map<String, int>? coreStats,
     bool? isPremium,
     DateTime? updatedAt,
+    String? globalFitnessTier,
+    Map<String, int>? physicalBaselines,
+    String? primaryFitnessGoal,
   }) {
     return PlayerProfile(
       uid: uid ?? this.uid,
@@ -49,6 +65,9 @@ class PlayerProfile {
       coreStats: coreStats ?? Map<String, int>.from(this.coreStats),
       isPremium: isPremium ?? this.isPremium,
       updatedAt: updatedAt ?? this.updatedAt,
+      globalFitnessTier: globalFitnessTier ?? this.globalFitnessTier,
+      physicalBaselines: physicalBaselines ?? Map<String, int>.from(this.physicalBaselines),
+      primaryFitnessGoal: primaryFitnessGoal ?? this.primaryFitnessGoal,
     );
   }
 
@@ -63,6 +82,9 @@ class PlayerProfile {
       'core_stats': Map<String, dynamic>.from(coreStats),
       'is_premium': isPremium,
       'updated_at': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      'global_fitness_tier': globalFitnessTier,
+      'physical_baselines': Map<String, dynamic>.from(physicalBaselines),
+      'primary_fitness_goal': primaryFitnessGoal,
     };
   }
 
@@ -72,6 +94,13 @@ class PlayerProfile {
     if (map['core_stats'] != null) {
       (map['core_stats'] as Map<dynamic, dynamic>).forEach((key, value) {
         statsMap[key.toString()] = (value as num).toInt();
+      });
+    }
+
+    final Map<String, int> baselinesMap = {};
+    if (map['physical_baselines'] != null) {
+      (map['physical_baselines'] as Map<dynamic, dynamic>).forEach((key, value) {
+        baselinesMap[key.toString()] = (value as num).toInt();
       });
     }
 
@@ -94,11 +123,14 @@ class PlayerProfile {
       coreStats: statsMap.isNotEmpty ? statsMap : null,
       isPremium: map['is_premium'] as bool? ?? false,
       updatedAt: parsedUpdatedAt ?? DateTime.now(),
+      globalFitnessTier: map['global_fitness_tier'] as String? ?? 'Unset',
+      physicalBaselines: baselinesMap.isNotEmpty ? baselinesMap : null,
+      primaryFitnessGoal: map['primary_fitness_goal'] as String? ?? 'Unset',
     );
   }
 
   @override
   String toString() {
-    return 'PlayerProfile(uid: $uid, username: $username, currentRank: $currentRank, totalXp: $totalXp, streakCount: $streakCount, coreStats: $coreStats, updatedAt: $updatedAt)';
+    return 'PlayerProfile(uid: $uid, username: $username, currentRank: $currentRank, totalXp: $totalXp, streakCount: $streakCount, coreStats: $coreStats, updatedAt: $updatedAt, globalFitnessTier: $globalFitnessTier, physicalBaselines: $physicalBaselines, primaryFitnessGoal: $primaryFitnessGoal)';
   }
 }

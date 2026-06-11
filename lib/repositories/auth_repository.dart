@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/player_profile.dart';
 
 class AuthRepository {
@@ -19,7 +20,14 @@ class AuthRepository {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Gets the currently authenticated user.
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser {
+    try {
+      return _auth.currentUser;
+    } catch (e) {
+      debugPrint('Firebase not initialized. Returning null user for UI testing.');
+      return null;
+    }
+  }
 
   /// Registers a new user with email, password, and username.
   /// 

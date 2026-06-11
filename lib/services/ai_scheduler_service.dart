@@ -26,18 +26,22 @@ class AiSchedulerService {
     final failedTaskTitles = failedTasks.map((t) => t.title).join(', ');
 
     final prompt = '''
-You are an AI specialized in generating personalized, RPG-style daily quests.
-The user's current Rank is ${profile.currentRank}.
-Core Stats:
-- Strength: ${profile.coreStats['Strength'] ?? 10}
-- Intelligence: ${profile.coreStats['Intelligence'] ?? 10}
-- Discipline: ${profile.coreStats['Discipline'] ?? 10}
-- Wealth: ${profile.coreStats['Wealth'] ?? 10}
-- Charisma: ${profile.coreStats['Charisma'] ?? 10}
+You are the System Game Master for ASCEND. You must generate 3 personalized daily tasks inside a strictly typed JSON array. 
+The player's Global Tier is: ${profile.globalFitnessTier}. 
+Granular Physical Baselines:
+- Max Pushups: ${profile.physicalBaselines['pushups'] ?? 0} reps
+- Max Pullups: ${profile.physicalBaselines['pullups'] ?? 0} reps
+- 1-Mile Run Time: ${profile.physicalBaselines['mileTimeSeconds'] ?? 0} seconds
+- Max Plank Hold: ${profile.physicalBaselines['plankSeconds'] ?? 0} seconds
+
+CRITICAL INPUT COMPONENT-LEVEL SCALING RULE: Do not apply the global tier blindly across all generated tasks. Evaluate each task category individually against the specific physical baseline metric. If a player has high pushup counts but a slow mile run time, generate advanced upper body challenges but keep running tasks strictly matched to their lower endurance threshold.
+
+Their primary objective is: ${profile.primaryFitnessGoal}.
 
 Yesterday, the user failed to complete the following tasks: ${failedTaskTitles.isEmpty ? 'None' : failedTaskTitles}.
 
-Generate exactly 3 to 4 daily quests for this user.
+Tailor task flavors to match their primary objective of ${profile.primaryFitnessGoal} explicitly!
+
 Respond with a JSON object containing a single key "quests" that holds an array of task objects.
 Each task object must exactly match:
 {
@@ -50,7 +54,7 @@ Each task object must exactly match:
 
     try {
       final response = await _dio.post(
-        'https://api.openai.com/v1/chat/completions',
+        'https://openrouter.ai/api/v1/chat/completions',
         options: Options(
           headers: {
             'Authorization': 'Bearer $_apiKey',
@@ -58,7 +62,7 @@ Each task object must exactly match:
           },
         ),
         data: {
-          'model': 'gpt-4o',
+          'model': 'google/gemma-3-12b-instruct:free',
           'messages': [
             {'role': 'system', 'content': 'You are a helpful assistant that outputs strictly JSON.'},
             {'role': 'user', 'content': prompt},
@@ -76,6 +80,8 @@ Each task object must exactly match:
 
       const uuid = Uuid();
       final List<TaskModel> generatedTasks = [];
+      final now = DateTime.now();
+      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
       for (var item in jsonList) {
         generatedTasks.add(
@@ -87,7 +93,8 @@ Each task object must exactly match:
             isMandatory: item['isMandatory'] == true,
             isCompleted: false,
             xpReward: (item['xpReward'] as num?)?.toInt() ?? 15,
-            createdAt: DateTime.now(),
+            createdAt: now,
+            deadline: endOfDay,
           ),
         );
       }
@@ -113,6 +120,22 @@ Each task object must exactly match:
       isCompleted: false,
       xpReward: 5,
       createdAt: DateTime(now.year, now.month, now.day),
+    );
+  }
+
+  TaskModel generatePenaltyQuest({required String userId}) {
+    final now = DateTime.now();
+    return TaskModel(
+      id: const Uuid().v4(),
+      userId: userId,
+      title: 'Penalty Quest: Double Down Challenge',
+      description: 'You missed your deadlines. Complete this urgent challenge to reclaim your standing.',
+      category: 'System',
+      isMandatory: true,
+      isCompleted: false,
+      xpReward: 30,
+      createdAt: DateTime(now.year, now.month, now.day),
+      deadline: DateTime(now.year, now.month, now.day, 23, 59, 59),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/player_profile.dart';
 import 'rank_overlay_provider.dart';
 
@@ -41,6 +42,21 @@ class PlayerProfileNotifier extends StateNotifier<PlayerProfile> {
   /// Upgrades the user to premium.
   void unlockPremium() {
     state = state.copyWith(isPremium: true);
+  }
+
+  /// Sets the entire profile state directly.
+  Future<void> setProfile(PlayerProfile newProfile, {bool saveToFirestore = false}) async {
+    state = newProfile;
+    if (saveToFirestore) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(newProfile.uid)
+            .set(newProfile.toMap(), SetOptions(merge: true));
+      } catch (e) {
+        // Handle or log error
+      }
+    }
   }
 
   /// Evaluates and returns the player's rank based on experience points:

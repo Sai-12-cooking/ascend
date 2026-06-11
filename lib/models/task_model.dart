@@ -10,6 +10,7 @@ class TaskModel {
   final bool isCompleted;
   final int xpReward;
   final DateTime createdAt;
+  final DateTime? deadline;
 
   TaskModel({
     required this.id,
@@ -21,6 +22,7 @@ class TaskModel {
     this.isCompleted = false,
     this.xpReward = 10,
     DateTime? createdAt,
+    this.deadline,
   }) : createdAt = _truncateDate(createdAt ?? DateTime.now());
 
   static DateTime _truncateDate(DateTime dateTime) {
@@ -38,6 +40,7 @@ class TaskModel {
     bool? isCompleted,
     int? xpReward,
     DateTime? createdAt,
+    DateTime? deadline,
   }) {
     return TaskModel(
       id: id ?? this.id,
@@ -49,6 +52,7 @@ class TaskModel {
       isCompleted: isCompleted ?? this.isCompleted,
       xpReward: xpReward ?? this.xpReward,
       createdAt: createdAt ?? this.createdAt,
+      deadline: deadline ?? this.deadline,
     );
   }
 
@@ -64,6 +68,7 @@ class TaskModel {
       'isCompleted': isCompleted,
       'xpReward': xpReward,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (deadline != null) 'deadline': Timestamp.fromDate(deadline!),
     };
   }
 
@@ -82,6 +87,21 @@ class TaskModel {
       parsedDate = DateTime.now();
     }
 
+    final rawDeadline = map['deadline'];
+    DateTime? parsedDeadline;
+    if (rawDeadline is Timestamp) {
+      parsedDeadline = rawDeadline.toDate().toUtc();
+    } else if (rawDeadline is String) {
+      parsedDeadline = DateTime.tryParse(rawDeadline)?.toUtc();
+    } else if (rawDeadline is DateTime) {
+      parsedDeadline = rawDeadline.toUtc();
+    }
+
+    if (parsedDeadline == null) {
+      final nowUtc = DateTime.now().toUtc();
+      parsedDeadline = DateTime.utc(nowUtc.year, nowUtc.month, nowUtc.day);
+    }
+
     return TaskModel(
       id: map['id'] as String,
       userId: map['userId'] as String,
@@ -92,11 +112,12 @@ class TaskModel {
       isCompleted: map['isCompleted'] as bool? ?? false,
       xpReward: (map['xpReward'] as num? ?? 10).toInt(),
       createdAt: parsedDate,
+      deadline: parsedDeadline,
     );
   }
 
   @override
   String toString() {
-    return 'TaskModel(id: $id, userId: $userId, title: $title, description: $description, category: $category, isMandatory: $isMandatory, isCompleted: $isCompleted, xpReward: $xpReward, createdAt: $createdAt)';
+    return 'TaskModel(id: $id, userId: $userId, title: $title, description: $description, category: $category, isMandatory: $isMandatory, isCompleted: $isCompleted, xpReward: $xpReward, createdAt: $createdAt, deadline: $deadline)';
   }
 }
